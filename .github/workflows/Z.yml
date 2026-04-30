@@ -1,0 +1,57 @@
+name: Process ZIP to Parts
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_filename:
+        description: 'Name of the zip file in dl/ (e.g., B.mp4.zip)'
+        required: true
+        type: string
+
+jobs:
+  process-media:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full ffmpeg
+
+      - name: Extract and Process
+        working-directory: dl
+        shell: bash
+        run: |
+          # Use the input directly
+          ZIP_FILE="${{ github.event.inputs.zip_filename }}"
+          
+          # Remove .mp4.zip to get the base prefix (e.g., "B")
+          BASE_NAME="${ZIP_FILE%.mp4.zip}"
+          
+          # Extract the zip
+          7z x "$ZIP_FILE"
+          
+          # Process with ffmpeg
+          ffmpeg -i "${BASE_NAME}.mp4" -c copy -f segment -segment_time 00:07:00 -reset_timestamps 1 "${BASE_NAME}_part_%03d.mp4"
+
+      - name: Commit and Push
+        working-directory: dl
+        run: |
+          # Set up git identity
+          git config user.name "GitHub Action Bot"
+          git config user.email "bot@users.noreply.github.com"
+          
+          # Prepare the prefix for the git add command
+          ZIP_FILE="${{ github.event.inputs.zip_filename }}"
+          BASE_NAME="${ZIP_FILE%.mp4.zip}"
+          
+          # Add only the parts generated in this run
+          git add "${BASE_NAME}_part_"*.mp4
+          
+          # Commit and push
+          git commit -m "Add processed parts for ${BASE_NAME} [skip ci]" || echo "No changes to commit"
+          git push
