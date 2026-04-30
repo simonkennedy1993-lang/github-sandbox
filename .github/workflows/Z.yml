@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y p7zip-full ffmpeg
 
       - name: Extract and Process
-        working-directory: dl
+        working-directory: downloads
         shell: bash
         run: |
           # Use the input directly
@@ -39,7 +39,7 @@ jobs:
           ffmpeg -i "${BASE_NAME}.mp4" -c copy -f segment -segment_time 00:20:00 -reset_timestamps 1 "${BASE_NAME}_part_%03d.mp4"
 
       - name: Commit and Push
-        working-directory: dl
+        working-directory: downloads
         run: |
           # Set up git identity
           git config user.name "GitHub Action Bot"
